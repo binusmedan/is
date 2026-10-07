@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Kumpulan Kasus Mini-Proyek Web Statis (12–21)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=block" rel="stylesheet">
+<link rel="stylesheet" href="assets/deck.css">
+<script src="assets/deck.js"></script>
+</head>
+<body>
+<main id="app"></main>
+
+<script>
+/* Ikon kecil khusus set ini */
+const Y = '<span class="yes">✓</span>';
+const N = '<span class="nomark">—</span>';
+const GEM = '<svg width="10" height="10" viewBox="0 0 12 12" style="vertical-align:-1px; margin-right:5px"><path d="M3 1h6l3 3.5L6 11 0 4.5z" fill="#9CC3EA" stroke="#4F6D8A" stroke-width=".9" stroke-linejoin="round"/></svg>';
+const WARN = '<svg width="11" height="11" viewBox="0 0 24 24"><path d="M12 3l10 18H2z" fill="none" stroke="#C24141" stroke-width="2.6" stroke-linejoin="round"/><path d="M12 10v5M12 18v.5" stroke="#C24141" stroke-width="2.6" stroke-linecap="round"/></svg>';
+const locker = n => {
+  const broken = n === 4 || n === 7;
+  const hover = n === 3;
+  return `<span class="loker ${broken ? 'broken' : ''} ${hover ? 'hover hl' : ''}"><b>${n}</b>${broken ? '<i>RUSAK</i>' : ''}${hover ? CURSOR('right:-6px; bottom:-6px') : ''}</span>`;
+};
+
+/* ===================== Data modul 12–21 ===================== */
+const PROJECTS = [
+  /* 12 */
+  {
+    cat: 'jasa',
+    title: 'Layanan Cuci Sepatu Mahasiswa',
+    sub: 'Pemesanan jasa shoe cleaning dengan antar-jemput',
+    html: { title: 'Tabel Jenis Layanan', desc: '<b>Kolom:</b> Layanan (Deep Clean, Unyellowing) · Harga', chips: ['<table>', '<th>', '<td>', '<form>'] },
+    css:  { title: 'Form & Tabel Kiri–Kanan', desc: 'Bungkus form dan tabel dalam satu wadah, lalu susun side-by-side.', chips: ['.wadah { display: flex }', 'gap: 24px', 'flex: 1'] },
+    js:   { title: 'Validasi Jumlah Sepatu', fields: ['Nama', 'Layanan', 'Jumlah Sepatu'],
+            rules: [['Bukan angka / ≤ 0', 'tolak submit + alert()'], ['Data valid', 'confirm("Konfirmasi penjemputan sepatu?")']],
+            tip: 'Cek dengan <code>isNaN(jumlah)</code> dan <code>jumlah &gt; 0</code>.' },
+    visual: browser('cuci-sepatu.html', `
+      <div class="rel flexbox hl" style="margin-top:6px">
+        <div style="flex:.9; min-width:0">${F('Form Penjemputan', [
+          { l: 'Nama', v: 'Kevin Halim' },
+          { l: 'Layanan', v: 'Deep Clean', sel: 1 },
+          { l: 'Jumlah Sepatu', v: '2', ok: 1, hint: 'Angka & lebih dari 0' },
+        ], 'Jemput Sepatu')}</div>
+        <div style="flex:1.1; min-width:0">
+          <div class="wf-title">Jenis Layanan</div>
+          ${T(['Layanan', 'Harga / Pasang'], [
+            ['Deep Clean', 'Rp 50.000'],
+            ['Unyellowing', 'Rp 65.000'],
+            ['Fast Clean', 'Rp 35.000'],
+          ])}
+        </div>
+        <span class="anno" style="top:-11px; left:12px">display: flex</span>
+        <span class="anno" style="top:-11px; right:12px">gap: 24px</span>
+      </div>
+      ${D('confirm', 'Konfirmasi penjemputan sepatu?', 'Jika jumlah sepatu valid', { style: 'width:68%; align-self:center' })}`),
+  },
+
+  /* 13 */
+  {
+    cat: 'booking',
+    title: 'Penyewaan Loker Kampus / Asrama',
+    sub: 'Sewa loker bulanan untuk mahasiswa & penghuni asrama',
+    html: { title: 'Tabel Tarif Loker', desc: '<b>Kolom:</b> Ukuran (S, M, L) · Dimensi · Tarif / Bulan', chips: ['<table>', '<tr>', '<td>', '<select>'] },
+    css:  { title: 'Kotak Pintu Loker', desc: 'Susun kotak berjajar menyerupai pintu loker. Warnanya berubah saat di-hover.', chips: ['.loker { display: inline-block }', 'width · height · margin', '.loker:hover { background-color }'] },
+    js:   { title: 'Validasi Loker Rusak', fields: ['Pilih Nomor Loker (1–10)'],
+            rules: [['Nomor 4 atau 7', 'cegah submit + alert("Loker nomor [X] sedang rusak!")']],
+            tip: 'Simpan daftar rusak di array: <code>const rusak = [4, 7];</code> lalu cek dengan <code>rusak.includes(nomor)</code>.' },
+    visual: browser('loker-kampus.html', `
+      <div>
+        <div class="wf-title">Pilih Loker</div>
+        <div class="loker-wall">
+          <div class="loker-group">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(locker).join('')}</div>
+          <div class="loker-notes">
+            <span class="anno static">display: inline-block</span>
+            <span class="anno static">:hover { background }</span>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <div>
+            <div class="wf-title">Tarif Loker</div>
+            ${T(['Ukuran', 'Dimensi', 'Tarif / Bulan'], [
+              ['S', '30×30 cm', 'Rp 30.000'],
+              ['M', '30×45 cm', 'Rp 45.000'],
+              ['L', '30×60 cm', 'Rp 60.000'],
+            ])}
+          </div>
+        </div>
+        <div class="col">
+          ${F('Sewa Loker', [{ l: 'Nomor Loker (1–10)', v: '7', sel: 1, err: 1, hint: 'Loker 4 & 7 sedang rusak' }], 'Sewa')}
+          ${D('alert', 'Loker nomor 7 sedang rusak!', 'Jika memilih 4 atau 7')}
+        </div>
+      </div>`),
+  },
+
+  /* 14 */
+  {
+    cat: 'sosial',
+    title: 'Pendaftaran Relawan Bencana Alam',
+    sub: 'Rekrutmen relawan untuk kegiatan sosial & tanggap bencana',
+    html: { title: 'Tabel Divisi Relawan', desc: '<b>Kolom:</b> Divisi (Medis, Dapur Umum, Logistik) · Tugas Utama · Kuota', chips: ['<table>', '<tbody>', '<tr>', '<td>'] },
+    css:  { title: 'Baris Zebra Selang-seling', desc: 'Warnai baris tabel bergantian memakai selector yang spesifik.', chips: ['tr:nth-child(even) { background-color }', 'tr:nth-child(odd)'] },
+    js:   { title: 'Prompt Jurusan & Cek Divisi', fields: ['Nama', 'Pilihan Divisi'],
+            rules: [['Halaman dibuka', 'prompt("Dari jurusan apa Anda berasal?")'], ['Medis + jurusan non-medis', 'tolak submit + alert()']],
+            tip: 'Cocokkan kata kunci jurusan, mis. Kedokteran, Keperawatan, Farmasi, Kesehatan Masyarakat.' },
+    visual: browser('relawan-bencana.html', `
+      <div>
+        <div class="wf-title">Divisi yang Dibutuhkan</div>
+        <div class="rel">
+          ${T(['Divisi', 'Tugas Utama', 'Kuota'], [
+            ['Medis', 'Pertolongan pertama', '10 orang'],
+            ['Dapur Umum', 'Memasak & distribusi', '15 orang'],
+            ['Logistik', 'Bongkar muat & gudang', '12 orang'],
+            ['Pendataan', 'Data pengungsi', '6 orang'],
+          ], { cls: 'zebra' })}
+          <span class="anno" style="top:57px; right:-8px">tr:nth-child(even)</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">${F('Daftar Relawan', [
+          { l: 'Nama', v: 'Salsa Amelia' },
+          { l: 'Pilihan Divisi', v: 'Medis', sel: 1, err: 1, hint: 'Jurusan tidak terkait kesehatan' },
+        ], 'Daftar')}</div>
+        <div class="col">
+          ${D('prompt', 'Dari jurusan apa Anda berasal?', 'Saat halaman dibuka', { val: 'Teknik Informatika' })}
+          ${D('alert', 'Divisi Medis khusus jurusan kesehatan!', 'Jika Medis & jurusan non-medis')}
+        </div>
+      </div>`),
+  },
+
+  /* 15 */
+  {
+    cat: 'jasa',
+    title: 'Pemesanan Katering Diet Mahasiswa',
+    sub: 'Langganan makanan sehat terukur kalorinya',
+    html: { title: 'Tabel Menu Mingguan', desc: '<b>Kolom:</b> Hari · Menu · Kalori (kkal) untuk minggu ini', chips: ['<table>', '<th>', '<td>', '<img>'] },
+    css:  { title: 'Logo “Halal” di Ujung Tabel', desc: 'Tabel menjadi acuan posisi, lalu logo Halal ditempel di sudut kanan atasnya.', chips: ['table { position: relative }', '.halal { position: absolute; top: -12px; right: -12px }'] },
+    js:   { title: 'Minimal Langganan 5 Hari', fields: ['Pilih Paket', 'Jumlah Hari'],
+            rules: [['Jumlah Hari < 5', 'tolak submit + alert("Langganan minimal 5 hari (Senin–Jumat)!")']] },
+    visual: browser('katering-diet.html', `
+      <div>
+        <div class="wf-title">Menu Minggu Ini</div>
+        <div class="rel hl" style="border-radius:8px">
+          ${T(['Hari', 'Menu', 'Kalori'], [
+            ['Senin', 'Nasi merah + ayam panggang', '450 kkal'],
+            ['Selasa', 'Salad tuna & telur rebus', '380 kkal'],
+            ['Rabu', 'Oatmeal + buah segar', '320 kkal'],
+            ['Kamis', 'Sup ikan + kentang', '410 kkal'],
+            ['Jumat', 'Gado-gado tanpa kerupuk', '400 kkal'],
+          ])}
+          <div class="halal"><span>✓<br>HALAL</span></div>
+          <span class="anno" style="bottom:-14px; left:10px">table { position: relative }</span>
+          <span class="anno" style="top:-10px; right:44px">.halal { position: absolute }</span>
+        </div>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <div class="col">${F('Pesan Katering', [
+          { l: 'Pilih Paket', v: 'Paket Lean · 1.500 kkal', sel: 1 },
+          { l: 'Jumlah Hari', v: '3', err: 1, hint: 'Minimal 5 hari (Senin–Jumat)' },
+        ], 'Langganan')}</div>
+        <div class="col center">${D('alert', 'Langganan katering minimal 5 hari (Senin–Jumat)!', 'Jika jumlah hari < 5')}</div>
+      </div>`),
+  },
+
+  /* 16 */
+  {
+    cat: 'booking',
+    title: 'Reservasi Meja Co-Working Space',
+    sub: 'Booking meja kerja di co-working space / kafe',
+    html: { title: 'Tabel Fasilitas Meja', desc: '<b>Kolom:</b> Meja · Colokan · AC · Sofa · Kapasitas', chips: ['<table>', '<th>', '<td>'] },
+    css:  { title: 'Form Rapi & Kursor Pointer', desc: 'Beri padding agar form lega, lalu ubah kursor menjadi tangan saat berada di tombol Submit.', chips: ['form { padding: 24px }', 'button { cursor: pointer }'] },
+    js:   { title: 'Validasi Jumlah Orang', fields: ['Nama', 'Jam Kedatangan', 'Jumlah Orang'],
+            rules: [['Jumlah Orang > 4', 'alert("Kapasitas meja maksimal 4 orang. Silakan sewa ruang meeting.")']] },
+    visual: browser('coworking-space.html', `
+      <div>
+        <div class="wf-title">Fasilitas Meja</div>
+        ${T(['Meja', 'Colokan', 'AC', 'Sofa', 'Kapasitas'], [
+          ['A1', Y, Y, N, '2 orang'],
+          ['A2', Y, Y, Y, '4 orang'],
+          ['B1', Y, N, Y, '4 orang'],
+        ])}
+      </div>
+      <div class="row" style="align-items:center">
+        <div class="col">
+          <div class="rel" style="margin:6px 0">
+            <div class="boxcard" style="padding:12px">
+              <div class="inner">${F('Reservasi Meja', [
+                { l: 'Nama', v: 'Nadia Putri' },
+                { l: 'Jam Kedatangan', v: '13.00', sel: 1 },
+                { l: 'Jumlah Orang', v: '6', err: 1, hint: 'Maks. 4 orang per meja' },
+              ], 'Reservasi', { cls: 'bare' })}</div>
+            </div>
+            ${HAND('right:40px; bottom:14px')}
+            <span class="anno" style="top:-11px; left:-4px">padding: 24px</span>
+            <span class="anno" style="bottom:-12px; right:4px">cursor: pointer</span>
+          </div>
+        </div>
+        <div class="col center">${D('alert', 'Kapasitas meja maksimal 4 orang. Silakan sewa ruang meeting.', 'Jika jumlah orang > 4')}</div>
+      </div>`),
+  },
+
+  /* 17 */
+  {
+    cat: 'jasa',
+    title: 'Pembelian Voucher Game Online',
+    sub: 'Top-up Diamond / Koin untuk akun game',
+    html: { title: 'Tabel Nominal Top-Up', desc: '<b>Kolom:</b> Nominal Diamond / Koin · Harga', chips: ['<table>', '<tr>', '<td>', '<button>'] },
+    css:  { title: 'Tombol Submit Menonjol', desc: 'Tombol diberi bayangan tebal dan berubah warna secara tajam saat di-hover.', chips: ['box-shadow: 0 4px 0 …', 'button:hover { background-color }', 'transition'] },
+    js:   { title: 'Validasi User ID', fields: ['User ID Game', 'Nominal Top-Up'],
+            rules: [['User ID berisi huruf', 'tolak submit + alert()']],
+            tip: 'Logika sederhana: <code>isNaN(userId)</code> bernilai <code>true</code> jika ada huruf.' },
+    visual: browser('topup-game.html', `
+      <div class="row">
+        <div class="col">
+          <div>
+            <div class="wf-title">Nominal Top-Up</div>
+            ${T(['Diamond', 'Harga'], [
+              [GEM + '86', 'Rp 20.000'],
+              [GEM + '172', 'Rp 40.000'],
+              [GEM + '257', 'Rp 60.000'],
+              [GEM + '706', 'Rp 150.000'],
+            ])}
+          </div>
+          ${D('alert', 'User ID hanya boleh berisi angka!', 'Jika User ID mengandung huruf')}
+        </div>
+        <div class="col">
+          ${F('Top-Up Diamond', [
+            { l: 'User ID Game', v: '12345abc', err: 1, hint: 'Hanya boleh angka' },
+            { l: 'Nominal Top-Up', v: '172 Diamond', sel: 1 },
+          ], '', { btnHtml: `
+            <div class="btn-states">
+              <div><div class="state-lbl">normal</div><div class="btn pop">Top-Up</div></div>
+              <div class="rel"><div class="state-lbl">:hover</div><div class="btn pop hover hl">Top-Up</div>${CURSOR('right:8px; bottom:-7px')}</div>
+            </div>` })}
+          <div class="anno-row">
+            <span class="anno static">box-shadow</span>
+            <span class="anno static">:hover { background }</span>
+          </div>
+        </div>
+      </div>`),
+  },
+
+  /* 18 */
+  {
+    cat: 'akademik',
+    title: 'Kalkulator Prediksi Nilai Mutu',
+    sub: 'Hitung nilai akhir dan huruf mutu dari komponen nilai',
+    html: { title: 'Tabel Rubrik Penilaian', desc: '<b>Kolom:</b> Komponen · Bobot (Kehadiran 10%, Tugas 20%, UTS 30%, UAS 40%)', chips: ['<table>', '<th>', '<td>', '<input type="number">'] },
+    css:  { title: 'Font Bergaya Sistem Akademik', desc: 'Gunakan font sans-serif klasik yang umum dipakai portal akademik.', chips: ['font-family: Arial, Helvetica, sans-serif'] },
+    js:   { title: 'Validasi & Hitung Nilai Akhir', fields: ['Kehadiran', 'Tugas', 'UTS', 'UAS'],
+            rules: [['Ada nilai > 100', 'tolak submit + alert()'], ['Data valid', 'hitung nilai akhir → alert("Nilai Anda B")']],
+            tip: 'Nilai akhir = 0,1·Hadir + 0,2·Tugas + 0,3·UTS + 0,4·UAS.' },
+    visual: browser('kalkulator-nilai.html', `
+      <div class="anno-row" style="justify-content:flex-end; margin-bottom:-4px">
+        <span class="anno static">body { font-family: Arial, Helvetica, sans-serif }</span>
+      </div>
+      <div class="arial" style="display:flex; flex-direction:column; gap:12px">
+        <div class="row">
+          <div class="col">
+            <div>
+              <div class="wf-title">Rubrik Penilaian</div>
+              ${T(['Komponen', 'Bobot'], [
+                ['Kehadiran', '10%'],
+                ['Tugas', '20%'],
+                ['UTS', '30%'],
+                ['UAS', '40%'],
+              ])}
+            </div>
+          </div>
+          <div class="col">${F('Input Nilai (0–100)', [
+            { l: 'Kehadiran', v: '90' },
+            { l: 'Tugas', v: '80' },
+            { l: 'UTS', v: '75' },
+            { l: 'UAS', v: '78' },
+          ], 'Hitung Nilai', { grid: 1 })}</div>
+        </div>
+        <div class="row" style="align-items:flex-end">
+          <div class="col">
+            <div class="calc">
+              <small>Perhitungan</small>
+              <div>9 + 16 + 22,5 + 31,2</div>
+              <div>Nilai akhir = <b>78,7</b></div>
+            </div>
+          </div>
+          <div class="col">${D('alert', 'Nilai Anda B', 'Setelah form disubmit')}</div>
+        </div>
+      </div>`),
+  },
+
+  /* 19 */
+  {
+    cat: 'event',
+    title: 'Absensi Kedatangan Rapat Organisasi',
+    sub: 'Presensi anggota dengan kode PIN rapat',
+    html: { title: 'Tabel Agenda Rapat', desc: '<b>Kolom:</b> Sesi · Topik · Waktu (agenda hari ini)', chips: ['<table>', '<tr>', '<td>', '<form>'] },
+    css:  { title: 'Form Tepat di Tengah', desc: 'Jadikan form elemen blok dengan lebar tetap, lalu ketengahkan dengan margin otomatis.', chips: ['form { display: block }', 'width: 360px', 'margin: 0 auto'] },
+    js:   { title: 'PIN Absensi', fields: ['Nama', 'Jabatan'],
+            rules: [['Halaman dibuka', 'prompt("Masukkan kode PIN absensi:")'], ['PIN salah', 'halangi pengisian form (disabled)'], ['PIN benar + submit', 'confirm()']] },
+    visual: browser('absensi-rapat.html', `
+      <div class="row">
+        <div class="col">
+          <div>
+            <div class="wf-title">Agenda Rapat Hari Ini</div>
+            ${T(['Sesi', 'Topik', 'Waktu'], [
+              ['1', 'Pembukaan', '09.00'],
+              ['2', 'Evaluasi Proker', '09.30'],
+              ['3', 'Rencana Event', '10.30'],
+            ])}
+          </div>
+        </div>
+        <div class="col center">${D('prompt', 'Masukkan kode PIN absensi:', 'Saat halaman dibuka', { val: '••••' })}</div>
+      </div>
+      <div class="center-demo">
+        <div class="gap"><span class="anno">margin: auto</span></div>
+        <div class="rel hl" style="width:50%; flex:none; border-radius:10px">
+          ${F('Form Absensi', [
+            { l: 'Nama', v: 'Fajar Nugraha' },
+            { l: 'Jabatan', v: 'Sekretaris', sel: 1 },
+          ], 'Kirim Absensi')}
+          <span class="anno" style="top:-11px; left:10px">display: block</span>
+          <span class="anno js" style="bottom:-11px; right:10px">confirm()</span>
+        </div>
+        <div class="gap"><span class="anno">margin: auto</span></div>
+      </div>`),
+  },
+
+  /* 20 */
+  {
+    cat: 'akademik',
+    title: 'Pengajuan Kalibrasi Alat Lab',
+    sub: 'Permintaan kalibrasi / perbaikan perangkat jaringan',
+    html: { title: 'Tabel Jadwal Kalibrasi', desc: '<b>Kolom:</b> Alat (Router, Switch, Kabel Tester) · Jadwal Rutin', chips: ['<table>', '<input>', '<select>', '<textarea>'] },
+    css:  { title: 'Input Lebar Proporsional', desc: 'Semua input, select, dan textarea selebar wadahnya tanpa meluber keluar.', chips: ['width: 100%', 'box-sizing: border-box'] },
+    js:   { title: 'Validasi Nomor Inventaris', fields: ['Nama Alat', 'Nomor Inventaris', 'Kendala'],
+            rules: [['Kosong / < 5 karakter', 'tolak submit + alert()']],
+            tip: 'Cek panjang dengan <code>.trim().length</code>.' },
+    visual: browser('kalibrasi-lab.html', `
+      <div class="row">
+        <div class="col">
+          <div>
+            <div class="wf-title">Jadwal Kalibrasi</div>
+            ${T(['Alat', 'Jadwal Rutin'], [
+              ['Router', 'Tiap 3 bulan'],
+              ['Switch', 'Tiap 6 bulan'],
+              ['Kabel Tester', 'Tiap bulan'],
+            ])}
+          </div>
+        </div>
+        <div class="col center">${D('alert', 'Nomor inventaris minimal 5 karakter!', 'Jika kosong / < 5 karakter')}</div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <div class="cap" style="color:#9AA1AB">Sebelum</div>
+          ${F('Form Kalibrasi', [
+            { l: 'Nama Alat', v: 'Switch', w: '55%' },
+            { l: 'Nomor Inventaris', v: 'INV-SW-0012', w: '78%' },
+            { l: 'Kendala', v: 'Port 3 mati', area: 1, w: '112%' },
+          ], 'Ajukan', { cls: 'muted' })}
+        </div>
+        <div class="col">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start">
+            <div class="cap" style="color:#6D28D9">Sesudah</div>
+            <span class="anno static" style="margin-top:-6px">width: 100%</span>
+          </div>
+          <div class="rel">
+            ${F('Form Kalibrasi', [
+              { l: 'Nama Alat', v: 'Switch', sel: 1 },
+              { l: 'Nomor Inventaris', v: 'INV1', err: 1, hint: 'Minimal 5 karakter' },
+              { l: 'Kendala', v: 'Port 3 mati', area: 1 },
+            ], 'Ajukan', { cls: 'full' })}
+            <span class="anno" style="top:-11px; right:8px">box-sizing: border-box</span>
+          </div>
+        </div>
+      </div>`),
+  },
+
+  /* 21 */
+  {
+    cat: 'akademik',
+    title: 'Pendaftaran Parkir Kendaraan Mahasiswa',
+    sub: 'Registrasi kendaraan untuk akses parkir kampus',
+    html: { title: 'Tabel Aturan Tarif Parkir', desc: '<b>Kolom:</b> Jenis (Motor, Mobil, Inap) · Tarif', chips: ['<table>', '<tr>', '<td>'] },
+    css:  { title: 'Badge “Wajib Bawa STNK!”', desc: 'Badge selalu terlihat di pojok halaman walaupun halaman di-scroll.', chips: ['position: fixed', 'top: 16px', 'right: 16px'] },
+    js:   { title: 'Validasi Nomor Polisi', fields: ['Nomor Polisi', 'Jenis Kendaraan'],
+            rules: [['Nomor Polisi kosong', 'tolak submit + alert()'], ['Saat submit', 'confirm("Daftarkan plat [Nomor Polisi] sebagai [Jenis Kendaraan]?")']] },
+    visual: browser('parkir-kampus.html', `
+      <div class="stnk hl">${WARN}Wajib Bawa STNK!</div>
+      <span class="anno" style="top:13px; right:150px">position: fixed</span>
+      <div style="height:22px"></div>
+      <div class="row">
+        <div class="col">
+          <div>
+            <div class="wf-title">Tarif Parkir</div>
+            ${T(['Jenis', 'Tarif'], [
+              ['Motor', 'Rp 2.000 / masuk'],
+              ['Mobil', 'Rp 5.000 / masuk'],
+              ['Inap', 'Rp 20.000 / malam'],
+            ])}
+          </div>
+          ${D('confirm', 'Daftarkan plat B 1234 XYZ sebagai Motor?', 'Saat submit')}
+        </div>
+        <div class="col">
+          ${F('Daftar Parkir', [
+            { l: 'Nomor Polisi', v: 'B 1234 XYZ', ok: 1, hint: 'Wajib diisi' },
+            { l: 'Jenis Kendaraan', v: 'Motor', sel: 1 },
+          ], 'Daftarkan')}
+          <div class="plate"><b>B 1234 XYZ</b><span>09 · 29</span></div>
+        </div>
+      </div>`),
+  },
+];
+
+renderDeck({ projects: PROJECTS, start: 12, total: 21, series: 'Kumpulan Kasus Mini-Proyek Web Statis' });
+</script>
+</body>
+</html>
