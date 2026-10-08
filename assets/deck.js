@@ -115,7 +115,7 @@ function renderDeck({ projects, start = 1, total = projects.length, series }) {
                 <span>NIM</span>
                 <input type="text" class="nim-input" inputmode="numeric" maxlength="10"
                        placeholder="27xxxxxxxx" autocomplete="off" spellcheck="false"
-                       aria-label="NIM mahasiswa">
+                       aria-label="NIM mahasiswa untuk modul ${no}">
               </label>
               <span class="cat"><i></i>${c.name}</span>
             </div>
@@ -177,15 +177,18 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 // NIM BINUS: tepat 10 digit angka. Sesuaikan pola ini jika format NIM berbeda.
 const NIM_PATTERN = /^\d{10}$/;
-// NIM cukup diketik sekali: disinkronkan ke semua kartu & diingat di browser.
-const NIM_STORAGE_KEY = 'mini-proyek:nim';
+// 1 kasus = 1 NIM: tiap kartu punya NIM sendiri, diingat di browser per nomor kasus.
+const NIM_STORAGE_PREFIX = 'mini-proyek:nim:';
 
-const readSavedNim = () => {
-  try { return localStorage.getItem(NIM_STORAGE_KEY) || ''; } catch { return ''; }
+const readSavedNim = (nomorKasus) => {
+  try { return localStorage.getItem(NIM_STORAGE_PREFIX + nomorKasus) || ''; } catch { return ''; }
 };
-const storeNim = (nim) => {
-  try { localStorage.setItem(NIM_STORAGE_KEY, nim); } catch { /* storage diblokir: abaikan */ }
+const storeNim = (nomorKasus, nim) => {
+  try { localStorage.setItem(NIM_STORAGE_PREFIX + nomorKasus, nim); } catch { /* storage diblokir: abaikan */ }
 };
+
+// NIM yang sedang diketik di kartu tempat `el` berada
+const nimOfCard = (el) => el.closest('.head-aside').querySelector('.nim-input').value.trim();
 
 // Valid jika diawali http:// atau https:// DAN bisa di-parse sebagai URL utuh.
 const isValidProjectUrl = (value) => {
@@ -244,12 +247,13 @@ const cacheUrl = (nim, nomorKasus, url) => {
   } catch { /* storage diblokir: abaikan */ }
 };
 
-// Ambil URL TERBARU per modul untuk satu NIM dari Supabase.
+// Ambil URL TERBARU per pasangan (NIM, nomor kasus) dari Supabase — satu request untuk banyak NIM.
+// Hasil: { "2702123456|04": "https://..." }
 // Butuh policy SELECT untuk anon. Jika ditolak RLS, Supabase mengembalikan [] → cache browser dipakai.
-async function ambilUrlTersimpan(nim) {
+async function ambilUrlTersimpan(nims) {
   const params = new URLSearchParams({
-    select: 'nomor_kasus,url_proyek',
-    nim_mahasiswa: `eq.${nim}`,
+    select: 'nim_mahasiswa,nomor_kasus,url_proyek',
+    nim_mahasiswa: `in.(${nims.join(',')})`, // aman: NIM sudah lolos validasi 10 digit
     order: 'created_at.desc,id.desc',
   });
   const response = await fetch(`${SUPABASE_URL}?${params}`, {
@@ -262,7 +266,7 @@ async function ambilUrlTersimpan(nim) {
 
   const latest = {};
   for (const row of await response.json()) {
-    const key = String(row.nomor_kasus).padStart(2, '0');
+    const key = `${String(row.nim_mahasiswa)}|${String(row.nomor_kasus).padStart(2, '0')}`;
     if (!(key in latest)) latest[key] = row.url_proyek; // baris pertama = terbaru
   }
   return latest;
@@ -287,34 +291,41 @@ const showEditView = (group, value) => {
   if (value !== undefined) group.querySelector('.url-input').value = value;
 };
 
-// Terapkan peta URL ke semua kartu. Kartu yang sedang diisi (mode edit) tidak diganggu.
-const applySavedUrls = (root, urls) => {
-  root.querySelectorAll('.save-url').forEach((group) => {
-    const url = urls[group.dataset.caseId];
-    if (url && isValidProjectUrl(url)) {
-      showSavedView(group, url);
-    } else if (group.classList.contains('is-done')) {
-      delete group.dataset.savedUrl;
-      showEditView(group, '');
-    }
-  });
+// Terapkan URL ke satu kartu. Kartu yang sedang diisi (mode edit) tidak diganggu.
+const applySavedUrl = (group, url) => {
+  if (url && isValidProjectUrl(url)) {
+    showSavedView(group, url);
+  } else if (group.classList.contains('is-done')) {
+    delete group.dataset.savedUrl;
+    showEditView(group, '');
+  }
 };
 
-let loadToken = 0;
-async function loadSavedUrls(root, nim) {
-  const token = ++loadToken;
-  if (!NIM_PATTERN.test(nim)) {
-    applySavedUrls(root, {});
-    return;
-  }
+// Muat URL tersimpan untuk sekumpulan kartu, masing-masing memakai NIM di kartunya sendiri.
+// 1) cache browser dulu (instan), 2) lalu data terbaru dari Supabase (satu request).
+async function loadSavedUrls(groups) {
+  const jobs = [];
+  groups.forEach((group) => {
+    const nim = nimOfCard(group);
+    const token = String(Number(group.dataset.loadToken || 0) + 1);
+    group.dataset.loadToken = token;
 
-  // 1) Tampilkan cache browser dulu (instan), 2) lalu timpa dengan data terbaru dari Supabase
-  const cached = readCachedUrls(nim);
-  applySavedUrls(root, cached);
+    if (!NIM_PATTERN.test(nim)) {
+      applySavedUrl(group, null);
+      return;
+    }
+    const cached = readCachedUrls(nim)[group.dataset.caseId];
+    applySavedUrl(group, cached);
+    jobs.push({ group, nim, token, cached });
+  });
+  if (!jobs.length) return;
+
   try {
-    const remote = await ambilUrlTersimpan(nim);
-    if (token !== loadToken) return; // NIM sudah diganti lagi, abaikan respons lama
-    applySavedUrls(root, { ...cached, ...remote });
+    const remote = await ambilUrlTersimpan([...new Set(jobs.map((j) => j.nim))]);
+    jobs.forEach(({ group, nim, token, cached }) => {
+      if (group.dataset.loadToken !== token) return; // NIM kartu ini sudah diganti lagi
+      applySavedUrl(group, remote[`${nim}|${group.dataset.caseId}`] || cached);
+    });
   } catch (error) {
     console.warn('Gagal memuat URL tersimpan dari Supabase, memakai cache browser:', error);
   }
@@ -361,32 +372,32 @@ async function handleSaveClick(event) {
 }
 
 function initSaveUrl(root) {
-  const nimInputs = root.querySelectorAll('.nim-input');
-  const savedNim = readSavedNim();
-  let nimTimer;
+  const groups = root.querySelectorAll('.save-url');
 
-  nimInputs.forEach((nimInput) => {
-    nimInput.value = savedNim;
+  groups.forEach((group) => {
+    const nimInput = group.closest('.head-aside').querySelector('.nim-input');
+    const caseId = group.dataset.caseId;
+    let nimTimer;
 
-    // Ketik NIM di satu kartu → semua kartu ikut terisi, tersimpan di browser,
-    // lalu URL milik NIM tersebut dimuat ulang (dengan jeda singkat saat mengetik)
+    // NIM khusus kasus ini (tidak disinkronkan ke kartu lain)
+    nimInput.value = readSavedNim(caseId);
+
+    // Ketik NIM → simpan untuk kasus ini, lalu muat URL milik NIM tsb (jeda singkat saat mengetik)
     nimInput.addEventListener('input', () => {
-      const nim = nimInput.value.trim();
-      nimInputs.forEach((other) => { if (other !== nimInput) other.value = nim; });
-      storeNim(nim);
+      storeNim(caseId, nimInput.value.trim());
       clearTimeout(nimTimer);
-      nimTimer = setTimeout(() => loadSavedUrls(root, nim), 300);
+      nimTimer = setTimeout(() => loadSavedUrls([group]), 300);
     });
 
     // Enter di kolom NIM = Save pada kartu yang sama (hanya jika kartu sedang mode edit)
     nimInput.addEventListener('keydown', (e) => {
-      if (e.key !== 'Enter') return;
-      const group = nimInput.closest('.head-aside').querySelector('.save-url');
-      if (!group.classList.contains('is-done')) group.querySelector('.save-btn').click();
+      if (e.key === 'Enter' && !group.classList.contains('is-done')) {
+        group.querySelector('.save-btn').click();
+      }
     });
   });
 
-  root.querySelectorAll('.save-url').forEach((group) => {
+  groups.forEach((group) => {
     const input = group.querySelector('.url-input');
     const btn = group.querySelector('.save-btn');
     const editBtn = group.querySelector('.edit-btn');
@@ -407,6 +418,6 @@ function initSaveUrl(root) {
     });
   });
 
-  // Saat halaman dibuka: tampilkan URL yang sudah pernah disimpan untuk NIM ini
-  loadSavedUrls(root, savedNim);
+  // Saat halaman dibuka: tampilkan URL tersimpan tiap kartu sesuai NIM masing-masing
+  loadSavedUrls([...groups]);
 }

@@ -356,7 +356,6 @@
   .save-btn:active:not(:disabled) { transform: translateY(1px); }
   .save-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
   .save-btn:disabled { opacity: .65; cursor: progress; }
-  .save-btn.is-saved, .save-btn.is-saved:hover { background: #1E8A4F; }
 
   /* Dua tampilan grup URL: edit (input + Save) dan tersimpan (link + Edit) */
   .su-edit, .su-view { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
