@@ -272,6 +272,32 @@ async function ambilUrlTersimpan(nims) {
   return latest;
 }
 
+// API GET: pengumpulan TERBARU untuk setiap nomor kasus (tanpa filter NIM),
+// supaya NIM + URL tampil di perangkat mana pun tanpa perlu mengetik NIM dulu.
+// Hasil: { "04": { nim: "2702123456", url: "https://...", waktu: "2026-10-08T05:12:00Z" } }
+async function ambilTugasTerbaru() {
+  const params = new URLSearchParams({
+    select: 'nim_mahasiswa,nomor_kasus,url_proyek,created_at',
+    order: 'created_at.desc,id.desc',
+  });
+  const response = await fetch(`${SUPABASE_URL}?${params}`, {
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+  });
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+
+  const terbaru = {};
+  for (const row of await response.json()) {
+    const kasus = String(row.nomor_kasus).padStart(2, '0');
+    if (!(kasus in terbaru)) { // baris pertama = terbaru
+      terbaru[kasus] = { nim: String(row.nim_mahasiswa), url: row.url_proyek, waktu: row.created_at };
+    }
+  }
+  return terbaru;
+}
+
 // Tampilan "tersimpan": link + tombol Edit. URL di-set lewat href/textContent (aman dari XSS).
 const showSavedView = (group, url) => {
   const link = group.querySelector('.saved-link');
@@ -329,6 +355,38 @@ async function loadSavedUrls(groups) {
   } catch (error) {
     console.warn('Gagal memuat URL tersimpan dari Supabase, memakai cache browser:', error);
   }
+}
+
+// Saat halaman dibuka:
+// 1) tampilkan cache browser (instan), 2) isi NIM + URL tiap kartu dari data terbaru di Supabase.
+async function loadAwal(groups) {
+  groups.forEach((group) => {
+    const nim = nimOfCard(group);
+    if (NIM_PATTERN.test(nim)) applySavedUrl(group, readCachedUrls(nim)[group.dataset.caseId]);
+  });
+
+  let terbaru;
+  try {
+    terbaru = await ambilTugasTerbaru();
+  } catch (error) {
+    console.warn('Gagal memuat data dari Supabase, memakai cache browser:', error);
+    return;
+  }
+
+  groups.forEach((group) => {
+    const caseId = group.dataset.caseId;
+    const data = terbaru[caseId];
+    if (!data || !NIM_PATTERN.test(data.nim)) return; // belum ada pengumpulan di server
+
+    const nimInput = group.closest('.head-aside').querySelector('.nim-input');
+    if (document.activeElement === nimInput) return;   // jangan timpa yang sedang diketik
+
+    nimInput.value = data.nim;
+    storeNim(caseId, data.nim);
+    cacheUrl(data.nim, caseId, data.url);
+    group.dataset.loadToken = String(Number(group.dataset.loadToken || 0) + 1); // batalkan load lama
+    applySavedUrl(group, data.url);
+  });
 }
 
 async function handleSaveClick(event) {
@@ -418,6 +476,6 @@ function initSaveUrl(root) {
     });
   });
 
-  // Saat halaman dibuka: tampilkan URL tersimpan tiap kartu sesuai NIM masing-masing
-  loadSavedUrls([...groups]);
+  // Saat halaman dibuka: NIM + URL tiap kartu diambil dari Supabase (berlaku di semua perangkat)
+  loadAwal([...groups]);
 }
