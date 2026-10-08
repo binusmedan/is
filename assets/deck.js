@@ -109,7 +109,29 @@ function renderDeck({ projects, start = 1, total = projects.length, series }) {
             <h1 class="title">${p.title}</h1>
             <p class="subtitle">${p.sub}</p>
           </div>
-          <span class="cat"><i></i>${c.name}</span>
+          <div class="head-aside">
+            <div class="aside-row">
+              <label class="nim-field">
+                <span>NIM</span>
+                <input type="text" class="nim-input" inputmode="numeric" maxlength="10"
+                       placeholder="27xxxxxxxx" autocomplete="off" spellcheck="false"
+                       aria-label="NIM mahasiswa">
+              </label>
+              <span class="cat"><i></i>${c.name}</span>
+            </div>
+            <div class="save-url" data-case-id="${no}">
+              <div class="su-edit">
+                <input type="url" class="url-input" placeholder="Paste link GitHub/Vercel proyek di sini..."
+                       aria-label="URL proyek modul ${no}" autocomplete="url" spellcheck="false">
+                <button type="button" class="save-btn">Save</button>
+              </div>
+              <div class="su-view" hidden>
+                <span class="ok-icon" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <a class="saved-link" target="_blank" rel="noopener noreferrer"></a>
+                <button type="button" class="edit-btn" aria-label="Ubah URL proyek modul ${no}">Edit</button>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="card-body">
           <div class="visual">
@@ -133,7 +155,9 @@ function renderDeck({ projects, start = 1, total = projects.length, series }) {
     </section>`;
   };
 
-  document.getElementById('app').innerHTML = projects.map(renderPage).join('');
+  const app = document.getElementById('app');
+  app.innerHTML = projects.map(renderPage).join('');
+  initSaveUrl(app);
 
   // Pratinjau satu halaman: file.html#p3 (urutan halaman di dalam file)
   const m = location.hash.match(/^#p(\d+)$/);
@@ -142,4 +166,247 @@ function renderDeck({ projects, start = 1, total = projects.length, series }) {
     const el = document.getElementById('p' + m[1]);
     if (el) el.classList.add('show');
   }
+}
+
+/* ===================== Simpan URL Proyek (Supabase) ===================== */
+// Endpoint REST tabel `tugas_mahasiswa` (kolom: nim_mahasiswa, nomor_kasus, url_proyek).
+// Anon key memang publik di sisi klien — keamanan data diatur oleh RLS di Supabase.
+// JANGAN pernah menaruh service_role key di file ini.
+const SUPABASE_URL = 'https://fxgodohilfqabqkwrkre.supabase.co/rest/v1/tugas_mahasiswa';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4Z29kb2hpbGZxYWJxa3dya3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczMjYxNDMsImV4cCI6MjA4MjkwMjE0M30.9wgs6w6buzkYVsEVVJnQ6HqM2MDlzWg0eilDqVAwfTE';
+
+// NIM BINUS: tepat 10 digit angka. Sesuaikan pola ini jika format NIM berbeda.
+const NIM_PATTERN = /^\d{10}$/;
+// NIM cukup diketik sekali: disinkronkan ke semua kartu & diingat di browser.
+const NIM_STORAGE_KEY = 'mini-proyek:nim';
+
+const readSavedNim = () => {
+  try { return localStorage.getItem(NIM_STORAGE_KEY) || ''; } catch { return ''; }
+};
+const storeNim = (nim) => {
+  try { localStorage.setItem(NIM_STORAGE_KEY, nim); } catch { /* storage diblokir: abaikan */ }
+};
+
+// Valid jika diawali http:// atau https:// DAN bisa di-parse sebagai URL utuh.
+const isValidProjectUrl = (value) => {
+  if (!/^https?:\/\//i.test(value)) return false;
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// Insert satu baris ke Supabase (POST + JSON).
+// nim & nomorKasus dikirim sebagai string ("2702xxxxxx", "01" … "21").
+async function simpanUrlProyek(nim, nomorKasus, urlProyek) {
+  const response = await fetch(SUPABASE_URL, {
+    method: 'POST', // insert data baru
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal', // Supabase tidak perlu mengembalikan baris yang di-insert
+    },
+    // Nama key harus sama dengan nama kolom di tabel Supabase
+    body: JSON.stringify({
+      nim_mahasiswa: nim,
+      nomor_kasus: nomorKasus,
+      url_proyek: urlProyek,
+    }),
+  });
+
+  if (!response.ok) {
+    // Supabase/PostgREST mengirim detail error dalam JSON: { message, code, hint, details }
+    let detail = `${response.status} ${response.statusText}`;
+    try {
+      const body = await response.json();
+      if (body && body.message) detail = `${response.status} – ${body.message}`;
+    } catch { /* body bukan JSON, pakai status saja */ }
+    throw new Error(detail);
+  }
+  return response;
+}
+
+/* ---------- URL yang sudah tersimpan ---------- */
+// Cache per NIM di browser: { "01": "https://...", "02": "..." }
+const URLS_STORAGE_PREFIX = 'mini-proyek:urls:';
+
+const readCachedUrls = (nim) => {
+  try { return JSON.parse(localStorage.getItem(URLS_STORAGE_PREFIX + nim)) || {}; } catch { return {}; }
+};
+const cacheUrl = (nim, nomorKasus, url) => {
+  try {
+    const urls = readCachedUrls(nim);
+    urls[nomorKasus] = url;
+    localStorage.setItem(URLS_STORAGE_PREFIX + nim, JSON.stringify(urls));
+  } catch { /* storage diblokir: abaikan */ }
+};
+
+// Ambil URL TERBARU per modul untuk satu NIM dari Supabase.
+// Butuh policy SELECT untuk anon. Jika ditolak RLS, Supabase mengembalikan [] → cache browser dipakai.
+async function ambilUrlTersimpan(nim) {
+  const params = new URLSearchParams({
+    select: 'nomor_kasus,url_proyek',
+    nim_mahasiswa: `eq.${nim}`,
+    order: 'created_at.desc,id.desc',
+  });
+  const response = await fetch(`${SUPABASE_URL}?${params}`, {
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+  });
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+
+  const latest = {};
+  for (const row of await response.json()) {
+    const key = String(row.nomor_kasus).padStart(2, '0');
+    if (!(key in latest)) latest[key] = row.url_proyek; // baris pertama = terbaru
+  }
+  return latest;
+}
+
+// Tampilan "tersimpan": link + tombol Edit. URL di-set lewat href/textContent (aman dari XSS).
+const showSavedView = (group, url) => {
+  const link = group.querySelector('.saved-link');
+  link.href = url;
+  link.textContent = url.replace(/^https?:\/\//i, '');
+  link.title = url;
+  group.dataset.savedUrl = url;
+  group.querySelector('.su-edit').hidden = true;
+  group.querySelector('.su-view').hidden = false;
+  group.classList.add('is-done');
+};
+
+const showEditView = (group, value) => {
+  group.querySelector('.su-view').hidden = true;
+  group.querySelector('.su-edit').hidden = false;
+  group.classList.remove('is-done');
+  if (value !== undefined) group.querySelector('.url-input').value = value;
+};
+
+// Terapkan peta URL ke semua kartu. Kartu yang sedang diisi (mode edit) tidak diganggu.
+const applySavedUrls = (root, urls) => {
+  root.querySelectorAll('.save-url').forEach((group) => {
+    const url = urls[group.dataset.caseId];
+    if (url && isValidProjectUrl(url)) {
+      showSavedView(group, url);
+    } else if (group.classList.contains('is-done')) {
+      delete group.dataset.savedUrl;
+      showEditView(group, '');
+    }
+  });
+};
+
+let loadToken = 0;
+async function loadSavedUrls(root, nim) {
+  const token = ++loadToken;
+  if (!NIM_PATTERN.test(nim)) {
+    applySavedUrls(root, {});
+    return;
+  }
+
+  // 1) Tampilkan cache browser dulu (instan), 2) lalu timpa dengan data terbaru dari Supabase
+  const cached = readCachedUrls(nim);
+  applySavedUrls(root, cached);
+  try {
+    const remote = await ambilUrlTersimpan(nim);
+    if (token !== loadToken) return; // NIM sudah diganti lagi, abaikan respons lama
+    applySavedUrls(root, { ...cached, ...remote });
+  } catch (error) {
+    console.warn('Gagal memuat URL tersimpan dari Supabase, memakai cache browser:', error);
+  }
+}
+
+async function handleSaveClick(event) {
+  const btn = event.currentTarget;
+  const group = btn.closest('.save-url');
+  const input = group.querySelector('.url-input');
+  const nimInput = btn.closest('.head-aside').querySelector('.nim-input');
+  const nim = nimInput.value.trim();
+  const url = input.value.trim();
+
+  // 1a. Validasi NIM: wajib diisi & 10 digit angka
+  if (!NIM_PATTERN.test(nim)) {
+    alert('NIM tidak valid! NIM harus 10 digit angka.');
+    nimInput.focus();
+    return;
+  }
+
+  // 1b. Validasi URL: tidak kosong & format URL benar
+  if (!url || !isValidProjectUrl(url)) {
+    alert('URL tidak valid!');
+    input.focus();
+    return;
+  }
+
+  // 2. Status loading
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+
+  // 3. Kirim data → jika sukses, kartu berganti ke tampilan "tersimpan"
+  try {
+    await simpanUrlProyek(nim, group.dataset.caseId, url);
+    cacheUrl(nim, group.dataset.caseId, url);
+    showSavedView(group, url);
+  } catch (error) {
+    console.error('Error:', error);
+    alert(`Terjadi kesalahan saat menyimpan URL.\n${error.message}`);
+  } finally {
+    btn.textContent = 'Save';
+    btn.disabled = false;
+  }
+}
+
+function initSaveUrl(root) {
+  const nimInputs = root.querySelectorAll('.nim-input');
+  const savedNim = readSavedNim();
+  let nimTimer;
+
+  nimInputs.forEach((nimInput) => {
+    nimInput.value = savedNim;
+
+    // Ketik NIM di satu kartu → semua kartu ikut terisi, tersimpan di browser,
+    // lalu URL milik NIM tersebut dimuat ulang (dengan jeda singkat saat mengetik)
+    nimInput.addEventListener('input', () => {
+      const nim = nimInput.value.trim();
+      nimInputs.forEach((other) => { if (other !== nimInput) other.value = nim; });
+      storeNim(nim);
+      clearTimeout(nimTimer);
+      nimTimer = setTimeout(() => loadSavedUrls(root, nim), 300);
+    });
+
+    // Enter di kolom NIM = Save pada kartu yang sama (hanya jika kartu sedang mode edit)
+    nimInput.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const group = nimInput.closest('.head-aside').querySelector('.save-url');
+      if (!group.classList.contains('is-done')) group.querySelector('.save-btn').click();
+    });
+  });
+
+  root.querySelectorAll('.save-url').forEach((group) => {
+    const input = group.querySelector('.url-input');
+    const btn = group.querySelector('.save-btn');
+    const editBtn = group.querySelector('.edit-btn');
+
+    btn.addEventListener('click', handleSaveClick);
+
+    // Enter = Save, Escape = batal edit (kembali ke URL tersimpan)
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') btn.click();
+      if (e.key === 'Escape' && group.dataset.savedUrl) showSavedView(group, group.dataset.savedUrl);
+    });
+
+    // Edit → kembali ke input, terisi URL lama
+    editBtn.addEventListener('click', () => {
+      showEditView(group, group.dataset.savedUrl || '');
+      input.focus();
+      input.select();
+    });
+  });
+
+  // Saat halaman dibuka: tampilkan URL yang sudah pernah disimpan untuk NIM ini
+  loadSavedUrls(root, savedNim);
 }

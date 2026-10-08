@@ -322,3 +322,79 @@
   .plate { align-self: center; background: #111827; color: #fff; border-radius: 6px; border: 2px solid #E5E7EB; outline: 1.5px solid #111827; padding: 5px 16px 4px; text-align: center; }
   .plate b { display: block; font-size: 15px; font-weight: 800; letter-spacing: .12em; }
   .plate span { font-size: 8px; letter-spacing: .14em; opacity: .7; }
+
+  /* ---------- Simpan URL Proyek (pojok kanan atas kartu) ---------- */
+  .head-aside {
+    margin-left: auto; align-self: flex-start; flex: none;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+  }
+  .head-aside .cat { margin-left: 0; }
+  .card-head > div:nth-child(2) { min-width: 0; }
+
+  .save-url {
+    display: flex; align-items: center; gap: 6px;
+    width: 320px; padding: 4px 4px 4px 6px;
+    background: #fff; border: 1px solid #E5E7EB; border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(16,24,40,.04);
+    transition: border-color .2s ease, box-shadow .2s ease;
+  }
+  .save-url:focus-within { border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-bg); }
+  .save-url input {
+    flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
+    font: inherit; font-size: 11px; color: var(--ink); padding: 6px 4px;
+  }
+  .save-url input::placeholder { color: #9CA3AF; }
+
+  .save-btn {
+    flex: none; border: 0; border-radius: 8px; cursor: pointer;
+    background: #111827; color: #fff;
+    font: inherit; font-size: 11px; font-weight: 700; letter-spacing: .01em;
+    padding: 7px 14px; min-width: 66px;
+    transition: background-color .2s ease, box-shadow .2s ease, transform .1s ease;
+  }
+  .save-btn:hover:not(:disabled) { background: var(--acc); box-shadow: 0 4px 12px rgba(16,24,40,.16); }
+  .save-btn:active:not(:disabled) { transform: translateY(1px); }
+  .save-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+  .save-btn:disabled { opacity: .65; cursor: progress; }
+  .save-btn.is-saved, .save-btn.is-saved:hover { background: #1E8A4F; }
+
+  /* Dua tampilan grup URL: edit (input + Save) dan tersimpan (link + Edit) */
+  .su-edit, .su-view { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
+  .su-edit[hidden], .su-view[hidden] { display: none; }
+  .save-url.is-done { border-color: #BFE3CD; background: #F4FBF7; }
+  .ok-icon { flex: none; width: 18px; height: 18px; margin-left: 2px; border-radius: 50%; background: #1E8A4F; display: grid; place-items: center; }
+  .saved-link {
+    flex: 1; min-width: 0; padding: 6px 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 11px; font-weight: 600; color: #166534; text-decoration: none;
+  }
+  .saved-link:hover { text-decoration: underline; }
+  .saved-link:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; border-radius: 4px; }
+  .edit-btn {
+    flex: none; cursor: pointer;
+    background: #fff; color: var(--ink2); border: 1px solid #D7E9DE; border-radius: 8px;
+    font: inherit; font-size: 11px; font-weight: 700; padding: 6px 13px;
+    transition: border-color .2s ease, color .2s ease;
+  }
+  .edit-btn:hover { border-color: var(--acc); color: var(--acc); }
+  .edit-btn:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+
+  /* Baris atas: kolom NIM + chip kategori */
+  .aside-row { display: flex; align-items: center; gap: 8px; }
+  .nim-field {
+    display: flex; align-items: center; gap: 7px;
+    height: 32px; padding: 0 12px;
+    background: #fff; border: 1px solid #E5E7EB; border-radius: 999px;
+    cursor: text; transition: border-color .2s ease, box-shadow .2s ease;
+  }
+  .nim-field:focus-within { border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-bg); }
+  .nim-field span { font-size: 9.5px; font-weight: 800; letter-spacing: .12em; color: #9AA1AB; }
+  .nim-field input {
+    width: 88px; border: 0; outline: 0; background: transparent;
+    font: inherit; font-size: 11.5px; font-weight: 600; letter-spacing: .04em;
+    font-variant-numeric: tabular-nums; color: var(--ink);
+  }
+  .nim-field input::placeholder { color: #C0C5CC; font-weight: 500; }
+
+  /* Input interaktif tidak ikut tercetak ke PDF */
+  @media print { .save-url, .nim-field { display: none; } }
